@@ -1,44 +1,51 @@
 package com.capstone.stagecoach.security;
 
 import io.jsonwebtoken.*;
-import org.springframework.beans.factory.annotation.Value;
+import io.jsonwebtoken.security.Keys;
+
 import org.springframework.stereotype.Component;
+
+import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-    @Value("${jwt.expiration}")
-    private int jwtExpirationMs;
+    private static final String JWT_SECRET = "6fCuRS0rzzz9F6kOP-bbzEvV9+V7bur@=A";
+
+    private static final long JWT_EXPIRATION_MS = 86400000; // 1 day
+
+    private Key key = Keys.hmacShaKeyFor(JWT_SECRET.getBytes());
 
     public String generateJwtToken(String username) {
+
         return Jwts.builder()
-            .setSubject(username)
-            .setIssuedAt(new Date())
-            .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-            .signWith(SignatureAlgorithm.HS512, jwtSecret)
-            .compact();
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
     }
 
-    public String getUsernameFromJwtToken(String token) {
-        return Jwts.parser()
-            .setSigningKey(jwtSecret)
-            .parseClaimsJws(token)
-            .getBody().getSubject();
+    public String getUserNameFromJwtToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
     }
 
     public boolean validateJwtToken(String authToken) {
         try {
-            Jwts.parser()
-              .setSigningKey(jwtSecret)
-              .parseClaimsJws(authToken);
+            Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(authToken);
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            // Handle different exceptions
+        } catch (JwtException e) {
+            // Log the exception as needed
         }
         return false;
     }
 }
-

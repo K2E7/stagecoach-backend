@@ -1,11 +1,13 @@
 package com.capstone.stagecoach.security;
 
-import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.util.StringUtils;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.capstone.stagecoach.service.UserDetailsServiceImpl;
 
@@ -14,8 +16,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import java.io.IOException;
 
 @Component
 public class JwtAuthTokenFilter extends OncePerRequestFilter {
@@ -32,19 +33,25 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
 
         try {
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtil.validateJwtToken(jwt)) {
-                String username = jwtUtil.getUsernameFromJwtToken(jwt);
 
-                var userDetails = userDetailsService.loadUserByUsername(username);
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+            if (jwt != null && jwtUtil.validateJwtToken(jwt)) {
+                String username = jwtUtil.getUserNameFromJwtToken(jwt);
+
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // Create an authentication token
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities());
 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
+                // Set the authentication to the context
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception e) {
-            // Log error
+            // Log the exception as needed
         }
 
         filterChain.doFilter(request, response);
@@ -53,8 +60,8 @@ public class JwtAuthTokenFilter extends OncePerRequestFilter {
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
 
-        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7);
+        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+            return headerAuth.substring(7); // Remove "Bearer " prefix
         }
 
         return null;

@@ -4,8 +4,11 @@ import com.capstone.stagecoach.model.*;
 import com.capstone.stagecoach.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionService {
@@ -20,20 +23,32 @@ public class TransactionService {
 
     @Transactional
     public Transaction transferFunds(String fromAccountNumber, String toAccountNumber, BigDecimal amount) {
+        // Fetch the debtor's (from) account
         Account fromAccount = accountRepository.findByAccountNumber(fromAccountNumber);
-        Account toAccount = accountRepository.findByAccountNumber(toAccountNumber);
+        if (fromAccount == null) {
+            throw new RuntimeException("From account not found");
+        }
 
+        // Fetch the creditor's (to) account
+        Account toAccount = accountRepository.findByAccountNumber(toAccountNumber);
+        if (toAccount == null) {
+            throw new RuntimeException("To account not found");
+        }
+
+        // Check if there are sufficient funds in the fromAccount
         if (fromAccount.getBalance().compareTo(amount) < 0) {
-            // Handle insufficient funds
             throw new RuntimeException("Insufficient funds");
         }
 
+        // Perform the transaction by updating balances
         fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
         toAccount.setBalance(toAccount.getBalance().add(amount));
 
+        // Save the updated accounts
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
 
+        // Create a transaction record
         Transaction transaction = new Transaction();
         transaction.setFromAccountId(fromAccount.getId());
         transaction.setToAccountId(toAccount.getId());
@@ -52,4 +67,3 @@ public class TransactionService {
         return transactionRepository.findByTransactionDateBetween(startDate, endDate);
     }
 }
-
